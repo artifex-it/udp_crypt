@@ -42,7 +42,7 @@ class CryptedMessage:
     a = 0
     b = 0
     worm = b"\0"*17
-    mess = b"\0"*257 # Message encrypted
+    mess = b"\0"*257 # Encrypted message
 
 
     def __init__(self, message_bytes=None):
@@ -247,7 +247,7 @@ if __name__ == '__main__':
 
         addr = (ADDR_TO_CONNECT, PORT)
 
-        msg_sended = "Ciao Ragazzo"
+        msg_sent = "Ciao Ragazzo"
         message = CryptedMessage()
         a_values = list(AFFINE_ENCRYPT_A_VALUES.keys())
         message.a = a_values[randrange(len(a_values))]
@@ -258,7 +258,7 @@ if __name__ == '__main__':
             client.settimeout(1.0)
 
             message.algoritm = i
-            message.encrypt(msg_sended)
+            message.encrypt(msg_sent)
 
             message_bytes = message.get_bytes()
 
@@ -266,7 +266,7 @@ if __name__ == '__main__':
             try:
                 response_bytes, server = client.recvfrom(277)
                 response_message = CryptedMessage(response_bytes)
-                print(f"{a}: {msg_sended} -> {response_message.decrypt()}")
+                print(f"{a}: {msg_sent} -> {response_message.decrypt()}")
             except timeout:
                 print(f"{a}: REQUEST TIMED OUT")
                 print(message_bytes)
