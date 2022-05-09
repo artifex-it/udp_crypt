@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 
 from asyncio import get_event_loop
+from random import randrange
 from socket import AF_INET, SOCK_DGRAM, socket, timeout
 from sys import argv
+
+
 
 SERVER_ADDR = "localhost"
 ADDR_TO_CONNECT = "localhost" # "localhost" or "rp1.cdoctor.it"
@@ -11,6 +14,13 @@ PORT = 65530
 
 CARBONARO_ENC_TABLE = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "OPGTIVCHEJKRNMABQLZDUFWXYS"))
 CARBONARO_DEC_TABLE = {v: k for k, v in CARBONARO_ENC_TABLE.items()}
+
+AFFINE_ENCRYPT_A_VALUES = {}
+for i in range (26):
+    for j in range(26):
+        if (i * j) % 26 == 1: # (a * dec_a) % 26 = 1
+            AFFINE_ENCRYPT_A_VALUES[i] = j
+
 
 class CryptedMessage:
     '''
@@ -34,6 +44,7 @@ class CryptedMessage:
     worm = b"\0"*17
     mess = b"\0"*257 # Message encrypted
 
+
     def __init__(self, message_bytes=None):
         '''
         '''
@@ -43,6 +54,7 @@ class CryptedMessage:
             self.b = int.from_bytes(message_bytes[2:3], "big")
             self.worm = message_bytes[3:20]
             self.mess = message_bytes[20:277]
+
 
     def encrypt(self, msg:str):
         '''
@@ -89,9 +101,19 @@ class CryptedMessage:
                 else:
                     crypted_c = '.'
                 crypted_msg += crypted_c.encode("utf-8")
-
+        # affine_encrypt
+        if self.algoritm == 4:
+            for c in msg:
+                if c.islower():
+                    crypted_ord = ord('a') + (self.a * (ord(c) - ord('a')) + self.b) % 26
+                elif c.isupper():
+                    crypted_ord = ord('A') + (self.a * (ord(c) - ord('A')) + self.b) % 26
+                else:
+                    crypted_ord = 46 # '.'
+                crypted_msg += chr(crypted_ord).encode("utf-8")
 
         self.mess = crypted_msg + b"\0"*(257-len(crypted_msg))
+
 
     def decrypt(self)->str:
         '''
@@ -142,8 +164,21 @@ class CryptedMessage:
                     decrypted_c = '.'
                 if c_ord > 0:
                     decrypted_msg += decrypted_c
+        # affine_encrypt
+        if self.algoritm == 4:
+            dec_a = AFFINE_ENCRYPT_A_VALUES[self.a] # dec_letter = dec_a * (enc_letter - b)
+            for c_ord in self.mess:
+                if ord('a') <= c_ord <= ord('z'):
+                    decrypted_ord = ord('a') + dec_a * ((c_ord - ord('a')) - self.b) % 26
+                elif ord('A') <= c_ord <= ord('Z'):
+                    decrypted_ord = ord('A') + dec_a * ((c_ord - ord('A')) - self.b) % 26
+                elif c_ord != 0:
+                    decrypted_ord = 46 # '.'
+                if c_ord > 0:
+                    decrypted_msg += chr(decrypted_ord)
 
         return decrypted_msg
+
 
     def get_bytes(self)->str:
         '''
@@ -161,10 +196,12 @@ class ServerProtocol():
     '''
     transport = None
 
+
     def connection_made(self, transport):
         '''
         '''
         self.transport = transport
+
 
     def datagram_received(self, message_bytes, addr):
         '''
@@ -174,6 +211,9 @@ class ServerProtocol():
         print(f"Received {decrypted_message} from {addr}")
         response = CryptedMessage()
         response.algoritm = message.algoritm
+        response.a = message.a
+        response.b = message.b
+        response.worm = message.worm
         response.encrypt(decrypted_message+" ok")
         self.transport.sendto(response.get_bytes(), addr)
 
@@ -202,12 +242,16 @@ if __name__ == '__main__':
             1: "ROT13",
             2: "adbash",
             3: "carbonaro",
+            4: "affine_encrypt",
         }
 
         addr = (ADDR_TO_CONNECT, PORT)
 
         msg_sended = "Ciao Ragazzo"
         message = CryptedMessage()
+        a_values = list(AFFINE_ENCRYPT_A_VALUES.keys())
+        message.a = a_values[randrange(len(a_values))]
+        message.b = randrange(10)
 
         for i, a in algoritms.items():
             client = socket(AF_INET, SOCK_DGRAM)
