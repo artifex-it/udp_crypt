@@ -7,9 +7,8 @@ from socket import AF_INET, SOCK_DGRAM, socket, timeout
 from sys import argv
 
 
-
 SERVER_ADDR = "localhost"
-ADDR_TO_CONNECT = "localhost" # "localhost" or "rp1.cdoctor.it"
+ADDR_TO_CONNECT = "localhost"
 PORT = 65530
 
 CARBONARO_ENC_TABLE = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "OPGTIVCHEJKRNMABQLZDUFWXYS"))
@@ -219,10 +218,23 @@ class ServerProtocol():
 
 
 if __name__ == '__main__':
-    # Server
-    if "-s" in argv:
+    print()
+    print("Flags:")
+    print("-s\t\truns the server")
+    print("-h IP_ADDRESS\truns the client connecting to IP_ADDRESS")
+    print("Without flags runs client connecting to localhost")
+    print()
+
+    run_server = "-s" in argv
+
+    if "-h" in argv:
+        ind = argv.index("-h")
+        ADDR_TO_CONNECT = argv[ind+1]
+
+    if run_server: # Server
         loop = get_event_loop()
         print("Starting UDP server")
+        print("Press ^C to terminate")
 
         listen = loop.create_datagram_endpoint(ServerProtocol, (SERVER_ADDR, PORT))
         transport, protocol = loop.run_until_complete(listen)
@@ -235,8 +247,7 @@ if __name__ == '__main__':
         transport.close()
         loop.close()
 
-    # Client
-    else:
+    else: # Client
         algoritms = {
             0: "cesare_encrypt",
             1: "ROT13",
