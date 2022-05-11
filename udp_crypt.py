@@ -5,6 +5,7 @@ from asyncio import get_event_loop
 from random import randrange
 from socket import AF_INET, SOCK_DGRAM, socket, timeout
 from sys import argv
+from time import sleep
 
 
 SERVER_ADDR = "localhost"
@@ -40,8 +41,8 @@ class CryptedMessage:
     algoritm = 0
     a = 0
     b = 0
-    worm = b"\0"*17
-    mess = b"\0"*257 # Encrypted message
+    worm = b""
+    mess = b"" # Encrypted message
 
 
     def __init__(self, message_bytes=None):
@@ -51,14 +52,14 @@ class CryptedMessage:
             self.algoritm = int.from_bytes(message_bytes[0:1], "big")
             self.a = int.from_bytes(message_bytes[1:2], "big")
             self.b = int.from_bytes(message_bytes[2:3], "big")
-            self.worm = message_bytes[3:20]
+            self.worm = message_bytes[3:20].replace(b"\0", b"")
             self.mess = message_bytes[20:277]
 
 
     def encrypt(self, msg:str):
         '''
         '''
-        crypted_msg = b""
+        self.mess = b""
 
         # cesare_encrypt
         if self.algoritm == 0:
@@ -68,8 +69,8 @@ class CryptedMessage:
                 elif c.isupper():
                     crypted_ord = ord('A') + (ord(c) - ord('A') + 3) % 26
                 else:
-                    crypted_ord = 46 # '.'
-                crypted_msg += chr(crypted_ord).encode("utf-8")
+                    crypted_ord = 95 # '_'
+                self.mess += chr(crypted_ord).encode("utf-8")
         # ROT13
         elif self.algoritm == 1:
             for c in msg:
@@ -78,8 +79,8 @@ class CryptedMessage:
                 elif c.isupper():
                     crypted_ord = ord('A') + (ord(c) - ord('A') + 13) % 26
                 else:
-                    crypted_ord = 46 # '.'
-                crypted_msg += chr(crypted_ord).encode("utf-8")
+                    crypted_ord = 95 # '_'
+                self.mess += chr(crypted_ord).encode("utf-8")
         # adbash
         elif self.algoritm == 2:
             for c in msg:
@@ -88,8 +89,8 @@ class CryptedMessage:
                 elif c.isupper():
                     crypted_ord = ord('A') + (ord('Z') - ord(c)) % 26
                 else:
-                    crypted_ord = 46 # '.'
-                crypted_msg += chr(crypted_ord).encode("utf-8")
+                    crypted_ord = 95 # '_'
+                self.mess += chr(crypted_ord).encode("utf-8")
         # carbonaro
         elif self.algoritm == 3:
             for c in msg:
@@ -98,8 +99,8 @@ class CryptedMessage:
                 elif c.isupper():
                     crypted_c = CARBONARO_ENC_TABLE[c]
                 else:
-                    crypted_c = '.'
-                crypted_msg += crypted_c.encode("utf-8")
+                    crypted_c = '_'
+                self.mess += crypted_c.encode("utf-8")
         # affine_encrypt
         if self.algoritm == 4:
             for c in msg:
@@ -108,10 +109,27 @@ class CryptedMessage:
                 elif c.isupper():
                     crypted_ord = ord('A') + (self.a * (ord(c) - ord('A')) + self.b) % 26
                 else:
-                    crypted_ord = 46 # '.'
-                crypted_msg += chr(crypted_ord).encode("utf-8")
-
-        self.mess = crypted_msg + b"\0"*(257-len(crypted_msg))
+                    crypted_ord = 95 # '_'
+                self.mess += chr(crypted_ord).encode("utf-8")
+        # vigenere_encrypt
+        elif self.algoritm == 5:
+            msg = msg.upper()
+            worm = self.worm.upper()
+            for i, c in enumerate(msg):
+                if c.isupper():
+                    crypted_ord = ord('A') + (ord(c) - ord('A') + worm[i%len(worm)]) % 26
+                else:
+                    crypted_ord = 95 # '_'
+                self.mess += chr(crypted_ord).encode("utf-8")
+        # baconian_encrypt
+        if self.algoritm == 6:
+            msg = msg.upper()
+            for c in msg:
+                if c.isupper():
+                    crypted_ord = ord(c) - ord('A')
+                else:
+                    crypted_ord = 95 - ord('A') # '_'
+                self.mess += f"{crypted_ord:05b}".replace("0", "a").replace("1", "b").encode("utf-8")
 
 
     def decrypt(self)->str:
@@ -127,7 +145,7 @@ class CryptedMessage:
                 elif ord('A') <= c_ord <= ord('Z'):
                     decrypted_ord = ord('A') + (c_ord - ord('A') - 3) % 26
                 elif c_ord != 0:
-                    decrypted_ord = 46 # '.'
+                    decrypted_ord = 95 # '_'
                 if c_ord > 0:
                     decrypted_msg += chr(decrypted_ord)
         # ROT13
@@ -138,7 +156,7 @@ class CryptedMessage:
                 elif ord('A') <= c_ord <= ord('Z'):
                     decrypted_ord = ord('A') + (c_ord - ord('A') - 13) % 26
                 elif c_ord != 0:
-                    decrypted_ord = 46 # '.'
+                    decrypted_ord = 95 # '_'
                 if c_ord > 0:
                     decrypted_msg += chr(decrypted_ord)
         # adbash
@@ -149,7 +167,7 @@ class CryptedMessage:
                 elif ord('A') <= c_ord <= ord('Z'):
                     decrypted_ord = ord('A') + (ord('Z') - c_ord) % 26
                 elif c_ord != 0:
-                    decrypted_ord = 46 # '.'
+                    decrypted_ord = 95 # '_'
                 if c_ord > 0:
                     decrypted_msg += chr(decrypted_ord)
         # carbonaro
@@ -160,7 +178,7 @@ class CryptedMessage:
                 elif ord('A') <= c_ord <= ord('Z'):
                     decrypted_c = CARBONARO_DEC_TABLE[chr(c_ord)]
                 elif c_ord != 0:
-                    decrypted_c = '.'
+                    decrypted_c = '_'
                 if c_ord > 0:
                     decrypted_msg += decrypted_c
         # affine_encrypt
@@ -172,9 +190,25 @@ class CryptedMessage:
                 elif ord('A') <= c_ord <= ord('Z'):
                     decrypted_ord = ord('A') + dec_a * ((c_ord - ord('A')) - self.b) % 26
                 elif c_ord != 0:
-                    decrypted_ord = 46 # '.'
+                    decrypted_ord = 95 # '_'
                 if c_ord > 0:
                     decrypted_msg += chr(decrypted_ord)
+        # vigenere_encrypt
+        elif self.algoritm == 5:
+            worm = self.worm.upper()
+            for i, c_ord in enumerate(self.mess):
+                if ord('A') <= c_ord <= ord('Z'):
+                    decrypted_ord = ord('A') + (c_ord - ord('A') - worm[i%len(worm)]) % 26
+                elif c_ord != 0:
+                    decrypted_ord = 95 # '_'
+                if c_ord > 0:
+                    decrypted_msg += chr(decrypted_ord)
+        # baconian_encrypt
+        if self.algoritm == 6:
+            crypted_msg = self.mess.replace(b"\0", b"")
+            c_bin_ords = [crypted_msg[i: i+5] for i in range(0, len(crypted_msg), 5)]
+            for c_bin_ord in c_bin_ords:
+                decrypted_msg += chr(ord('A') + int(c_bin_ord.replace(b"a", b"0").replace(b"b", b"1"), 2))
 
         return decrypted_msg
 
@@ -185,8 +219,8 @@ class CryptedMessage:
         message_bytes = self.algoritm.to_bytes(1, "big")
         message_bytes += self.a.to_bytes(1, "big")
         message_bytes += self.b.to_bytes(1, "big")
-        message_bytes += self.worm
-        message_bytes += self.mess
+        message_bytes += self.worm + b"\0"*(17-len(self.worm))
+        message_bytes += self.mess + b"\0"*(257-len(self.mess))
         return message_bytes
 
 
@@ -222,7 +256,8 @@ if __name__ == '__main__':
     print("Flags:")
     print("-s\t\truns the server")
     print("-h IP_ADDRESS\truns the client connecting to IP_ADDRESS")
-    print("Without flags runs client connecting to localhost")
+    print("-l \t\tintroduces a delay of 200ms between calls for slow server")
+    print("Without -h flag runs client connecting to localhost")
     print()
 
     run_server = "-s" in argv
@@ -230,6 +265,8 @@ if __name__ == '__main__':
     if "-h" in argv:
         ind = argv.index("-h")
         ADDR_TO_CONNECT = argv[ind+1]
+
+    slows = "-l" in argv
 
     if run_server: # Server
         loop = get_event_loop()
@@ -254,6 +291,8 @@ if __name__ == '__main__':
             2: "adbash",
             3: "carbonaro",
             4: "affine_encrypt",
+            5: "vigenere_encrypt",
+            6: "baconian_encrypt",
         }
 
         addr = (ADDR_TO_CONNECT, PORT)
@@ -263,6 +302,7 @@ if __name__ == '__main__':
         a_values = list(AFFINE_ENCRYPT_A_VALUES.keys())
         message.a = a_values[randrange(len(a_values))]
         message.b = randrange(10)
+        message.worm = b"CRIPTO"
 
         for i, a in algoritms.items():
             client = socket(AF_INET, SOCK_DGRAM)
@@ -273,6 +313,7 @@ if __name__ == '__main__':
 
             message_bytes = message.get_bytes()
 
+            # print(message_bytes)
             client.sendto(message_bytes, addr)
             try:
                 response_bytes, server = client.recvfrom(277)
@@ -282,3 +323,6 @@ if __name__ == '__main__':
                 print(f"{a}: REQUEST TIMED OUT")
                 print(message_bytes)
             client.close()
+
+            if slows:
+                sleep(.2)
