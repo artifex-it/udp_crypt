@@ -8,6 +8,8 @@ Gli algoritmi disponibili sono:
 - adbash
 - cifrario carbonaro
 - cifrario affine
+- cifrario di Vigenère
+- cifrario baconiano
 
 ---
 
@@ -19,3 +21,5 @@ The implemented algoritms are:
 - adbash
 - carbonaro cipher
 - affine cipher
+- Vigenère cipher
+- baconian cipher
