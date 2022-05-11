@@ -256,7 +256,7 @@ if __name__ == '__main__':
     print("Flags:")
     print("-s\t\truns the server")
     print("-h IP_ADDRESS\truns the client connecting to IP_ADDRESS")
-    print("-l \t\tintroduces a delay of 200ms between calls for slow server")
+    print("-l \t\tintroduces a delay of 200ms between calls for slow servers")
     print("Without -h flag runs client connecting to localhost")
     print()
 
